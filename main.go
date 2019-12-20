@@ -1,11 +1,12 @@
 package main
 
 import (
-	"golang.org/x/sync/errgroup"
 	"image/color"
 	"log"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -16,9 +17,9 @@ var (
 		A: 0xFF,
 	}
 	colorBorder = color.RGBA{
-		R: 0x33,
-		G: 0x33,
-		B: 0x33,
+		R: 0x66,
+		G: 0x66,
+		B: 0x66,
 		A: 0xFF,
 	}
 	colorWhite = color.RGBA{
@@ -32,6 +33,12 @@ var (
 		G: 0x00,
 		B: 0x00,
 		A: 0xFF,
+	}
+	colorLightBlue = color.RGBA{
+		R: 0xcf,
+		G: 0xe2,
+		B: 0xf3,
+		A: 0xff,
 	}
 )
 
@@ -67,7 +74,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 
 	err = os.Rename(h264name, "./out/example.h264.mp4")
 	if err != nil {

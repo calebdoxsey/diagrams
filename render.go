@@ -16,7 +16,7 @@ func render(w io.Writer) error {
 	a := apng.APNG{}
 	fs := scene.Frames()
 	for i := 0; i < fs; i++ {
-		ggctx := gg.NewContext(320, 240)
+		ggctx := gg.NewContext(420, 240)
 		scene.Update(float64(i) / float64(fs))
 		scene.Render(ggctx)
 		aframe := apng.Frame{
