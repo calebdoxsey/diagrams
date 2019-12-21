@@ -1,12 +1,16 @@
 package main
 
 import (
-	"github.com/fogleman/gg"
-	"github.com/kettek/apng"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+
+	"github.com/calebdoxsey/diagrams/animate"
+	"github.com/calebdoxsey/diagrams/graphics"
+	"github.com/calebdoxsey/diagrams/objects"
+	"github.com/fogleman/gg"
+	"github.com/kettek/apng"
 )
 
 const fps = 60
@@ -14,11 +18,31 @@ const fps = 60
 func render(w io.Writer) error {
 	log.Println("rendering")
 	a := apng.APNG{}
-	fs := scene.Frames()
+
+	kafka := objects.NewKafka(imageWidth-20, 50)
+
+	var msgs []*objects.Message
+	for i := 0; i < 20; i++ {
+		msgs = append(msgs, objects.NewMessage(i+1))
+	}
+
+	consumer := objects.NewConsumer(graphics.At(imageWidth/2-30, 110), 60, 40)
+
+	animator := kafka.LayoutMessages(20, msgs)
+	animator = animate.InSequence(animator,
+		animate.NoOp(10),
+		consumer.ProcessMessage(msgs[8]),
+	)
+	fs := animator.Frames()
 	for i := 0; i < fs; i++ {
-		ggctx := gg.NewContext(420, 240)
-		scene.Update(float64(i) / float64(fs))
-		scene.Render(ggctx)
+		ggctx := gg.NewContext(int(imageWidth), int(imageHeight))
+		objects.NewBackground(imageWidth, imageHeight).Render(ggctx)
+		kafka.Render(ggctx)
+		consumer.Render(ggctx)
+		for j := len(msgs) - 1; j >= 0; j-- {
+			msgs[j].Render(ggctx)
+		}
+		animator.Step(i)
 		aframe := apng.Frame{
 			Image:            ggctx.Image(),
 			DelayNumerator:   1,

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/calebdoxsey/diagrams/draw"
+	"github.com/calebdoxsey/diagrams/objects"
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
@@ -10,11 +11,12 @@ import (
 	"math"
 )
 
-const π = math.Pi
-
 var (
 	fontFace font.Face
 	scene    draw.Group
+
+	imageWidth  = 420.0
+	imageHeight = 240.0
 )
 
 func init() {
@@ -45,28 +47,29 @@ func init() {
 	reqLine := newArrowLine(180, 40, 100, 60)
 	resLine := newArrowLine(100, 80, 180, 70)
 
-	scene = append(scene, newMsgQueueBlock(7))
+	//scene = append(scene, objects.NewKafka(10, 10, imageWidth-20, 50))
 
 	for i := 0; i < 20; i++ {
-		x := float64(34)
-		y := float64(52 + 8*i)
-		obj := &msgBlock{
-			number: i + 1,
-			x:      x,
-			y:      y,
-		}
+		// x := float64(34)
+		// y := float64(52 + 8*i)
+		// obj := &msgBlock{
+		// 	number: i + 1,
+		// 	x:      x,
+		// 	y:      y,
+		// }
+		obj := objects.NewMessage(i + 1)
 		a := draw.NewStatic(obj, 60)
-		if i == 7 {
-			a = draw.NewSequence(a,
-				draw.NewBasicAnimation(obj, 10, func(v float64) {
-					obj.x = x + v*100
-					obj.y = y + v*100
-				}),
-				draw.NewBasicAnimation(obj, 60, func(v float64) {
-					obj.pctLoaded = v
-				}),
-			)
-		}
+		// if i == 7 {
+		// 	a = draw.NewSequence(a,
+		// 		draw.NewBasicAnimation(obj, 10, func(v float64) {
+		// 			obj.x = x + v*100
+		// 			obj.y = y + v*100
+		// 		}),
+		// 		draw.NewBasicAnimation(obj, 60, func(v float64) {
+		// 			obj.pctLoaded = v
+		// 		}),
+		// 	)
+		// }
 		scene = append(scene, a)
 	}
 

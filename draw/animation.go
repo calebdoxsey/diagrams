@@ -1,6 +1,8 @@
 package draw
 
-import "github.com/fogleman/gg"
+import (
+	"github.com/fogleman/gg"
+)
 
 // An Animation is an Object for the given number of frames.
 type Animation interface {
@@ -27,15 +29,15 @@ func (s staticAnimation) Frames() int {
 func (s staticAnimation) Update(float64) {}
 
 type basic struct {
-	object Object
-	frames int
+	object  Object
+	frames  int
 	updater func(float64)
 }
 
 func NewBasicAnimation(obj Object, frames int, updater func(float64)) Animation {
 	return basic{
-		object: obj,
-		frames: frames,
+		object:  obj,
+		frames:  frames,
 		updater: updater,
 	}
 }
@@ -98,7 +100,7 @@ func (s sequence) Render(ggctx *gg.Context) {
 }
 
 func (s sequence) Update(pct float64) {
-	frame := int(float64(s.frames)*pct)
+	frame := int(float64(s.frames) * pct)
 	prev := 0
 	for _, step := range s.steps {
 		next := prev + step.Frames()
@@ -108,7 +110,7 @@ func (s sequence) Update(pct float64) {
 		case frame < prev:
 			step.Update(0)
 		default:
-			step.Update(float64(frame-prev)/float64(next-prev))
+			step.Update(float64(frame-prev) / float64(next-prev))
 		}
 		prev = next
 	}
