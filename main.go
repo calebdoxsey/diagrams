@@ -1,45 +1,13 @@
 package main
 
 import (
-	"image/color"
 	"log"
 	"os"
-	"path/filepath"
 
-	"golang.org/x/sync/errgroup"
-)
-
-var (
-	colorBG = color.RGBA{
-		R: 0xF5,
-		G: 0xF2,
-		B: 0xF0,
-		A: 0xFF,
-	}
-	colorBorder = color.RGBA{
-		R: 0x66,
-		G: 0x66,
-		B: 0x66,
-		A: 0xFF,
-	}
-	colorWhite = color.RGBA{
-		R: 0xFF,
-		G: 0xFF,
-		B: 0xFF,
-		A: 0xFF,
-	}
-	colorBlack = color.RGBA{
-		R: 0x00,
-		G: 0x00,
-		B: 0x00,
-		A: 0xFF,
-	}
-	colorLightBlue = color.RGBA{
-		R: 0xcf,
-		G: 0xe2,
-		B: 0xf3,
-		A: 0xff,
-	}
+	"github.com/calebdoxsey/diagrams/animate"
+	"github.com/calebdoxsey/diagrams/graphics"
+	"github.com/calebdoxsey/diagrams/objects"
+	"github.com/fogleman/ease"
 )
 
 func main() {
@@ -47,36 +15,40 @@ func main() {
 
 	_ = os.MkdirAll("out", 0755)
 
-	apngname := filepath.Join(os.TempDir(), "tmp.apng")
-	h264name := filepath.Join(os.TempDir(), "tmp.mp4")
-	defer os.Remove(apngname)
-	defer os.Remove(h264name)
-	//av1name := "example.av1.mp4"
+	var objs []objects.Object
+	q := objects.NewQueue("queue")
+	objs = append(objs, q)
 
-	apngf, err := os.Create(apngname)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	err = render(apngf)
-	apngf.Close()
-	if err != nil {
-		log.Fatalln(err)
+	var msgs []*objects.Message
+	for i := 0; i < 24; i++ {
+		msg := objects.NewMessage(24 - i)
+		msgs = append(msgs, msg)
+		objs = append(objs, msg)
 	}
 
-	var eg errgroup.Group
-	eg.Go(func() error {
-		return apngToH264(h264name, apngname)
-	})
-	//eg.Go(func() error {
-	//	return apngToAV1(av1name, apngname)
-	//})
-	err = eg.Wait()
-	if err != nil {
-		log.Fatalln(err)
-	}
+	anim := q.LayoutMessages(30, msgs)
+	anim = animate.Delay(anim, 30)
 
-	err = os.Rename(h264name, "./out/example.h264.mp4")
-	if err != nil {
+	m1 := objects.NewMessage(1)
+	objs = append(objs, m1)
+	m1.SetVisibility(0)
+
+	a1 := objects.NewArrow(graphics.Line{graphics.At(100, 40), graphics.At(100, 60)})
+	objs = append(objs, a1)
+
+	anim = animate.InSequence(anim,
+		animate.Func(1, func(frame int) {
+			m1.SetPosition(msgs[len(msgs)-1].GetPosition())
+			m1.SetVisibility(1)
+			msgs[len(msgs)-1].SetVisibility(0.5)
+		}),
+		animate.MoveTo(10, m1, graphics.At(100, 100), ease.Linear),
+	)
+
+	anim = animate.InSequence(anim, animate.NoOp(30))
+
+	s := NewScene(objs, anim)
+	if err := s.Render("./out/example.mp4"); err != nil {
 		log.Fatalln(err)
 	}
 }

@@ -2,9 +2,9 @@ package objects
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/calebdoxsey/diagrams/graphics"
-	"github.com/fogleman/gg"
 )
 
 const (
@@ -43,46 +43,25 @@ func (msg *Message) SetVisibility(visibility float64) {
 	msg.visiblity = visibility
 }
 
-func (msg *Message) Render(ggctx *gg.Context) {
-	x, y, w, h := msg.position.X, msg.position.Y, messageWidth, messageHeight
-
-	clear := Color(0x000000)
-	clear.A = 0
-	bg := Color(0xFFFFFF)
-	border := Color(0x666666)
-	fg := Color(0x000000)
-
-	if msg.visiblity != 1 {
-		bg.A = GetAlpha(msg.visiblity)
-		border.A = GetAlpha(msg.visiblity)
-		fg.A = GetAlpha(msg.visiblity)
-	}
-
-	fmt.Println(bg)
-
-	ggctx.Push()
-	ggctx.SetFillStyle(gg.NewSolidPattern(bg))
-	ggctx.DrawRoundedRectangle(align(x), align(y), w, h, 4)
-	ggctx.Fill()
-	ggctx.Pop()
-
-	// ggctx.Push()
-	// ggctx.SetFillStyle(gg.NewSolidPattern(color.Black))
-	// ggctx.DrawRoundedRectangle(align(x), align(y), w*msg.pctLoaded, h, 2)
-	// ggctx.Fill()
-	// ggctx.Pop()
-
-	ggctx.Push()
-	ggctx.SetFillStyle(gg.NewSolidPattern(clear))
-	ggctx.SetStrokeStyle(gg.NewSolidPattern(border))
-	ggctx.DrawRoundedRectangle(align(x), align(y), w, h, 4)
-	ggctx.Stroke()
-	ggctx.Pop()
-
-	ggctx.Push()
-	ggctx.SetFontFace(fontFace)
-	ggctx.SetFillStyle(gg.NewSolidPattern(fg))
-	ggctx.DrawStringAnchored(fmt.Sprintf("%03d", msg.number), x+w/2, y+h/2, 0.5, 0.3)
-	ggctx.Fill()
-	ggctx.Pop()
+func (msg *Message) Render(w io.Writer) {
+	render(w, `
+<g>
+	<rect x="{{.X}}" y="{{.Y}}" width="{{.Width}}" height="{{.Height}}" rx="4" ry="4" fill="#FFF" stroke="#333"  opacity="{{.Opacity}}" />
+	<text font-family="Iosevka" font-size="10px" x="{{.TextX}}" y="{{.TextY}}" text-anchor="middle" opacity="{{.Opacity}}">{{.Text}}</text>
+</g>
+	`, struct {
+		X, Y, Width, Height float64
+		TextX, TextY        float64
+		Text                string
+		Opacity             float64
+	}{
+		X:       msg.position.X,
+		Y:       msg.position.Y,
+		Width:   messageWidth,
+		Height:  messageHeight,
+		TextX:   msg.position.X + (messageWidth / 2),
+		TextY:   msg.position.Y + (messageHeight) - 4,
+		Text:    fmt.Sprintf("%03d", msg.number),
+		Opacity: msg.visiblity,
+	})
 }

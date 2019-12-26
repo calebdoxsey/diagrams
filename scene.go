@@ -2,251 +2,159 @@ package main
 
 import (
 	"fmt"
-	"github.com/calebdoxsey/diagrams/draw"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	"github.com/calebdoxsey/diagrams/animate"
 	"github.com/calebdoxsey/diagrams/objects"
-	"github.com/fogleman/gg"
-	"github.com/golang/freetype/truetype"
-	"golang.org/x/image/font"
-	"io/ioutil"
-	"math"
+	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 )
 
-var (
-	fontFace font.Face
-	scene    draw.Group
+type Scene struct {
+	objects  []objects.Object
+	animator animate.Animator
+	tmp      string
+}
 
-	imageWidth  = 420.0
-	imageHeight = 240.0
-)
-
-func init() {
-	bs, err := ioutil.ReadFile("iosevka-medium.ttf")
-	if err != nil {
+func NewScene(objects []objects.Object, animator animate.Animator) *Scene {
+	s := &Scene{
+		objects:  objects,
+		animator: animator,
+		tmp:      filepath.Join(os.TempDir(), uuid.New().String()),
+	}
+	if err := os.MkdirAll(s.tmp, 0755); err != nil {
 		panic(err)
 	}
+	return s
+}
 
-	f, err := truetype.Parse(bs)
-	if err != nil {
-		panic(f)
-	}
-	fontFace = truetype.NewFace(f, &truetype.Options{
-		Size:    12,
-		DPI:     72,
-		Hinting: font.HintingNone,
-	})
+func (s *Scene) Close() error {
+	return os.RemoveAll(s.tmp)
+}
 
-	scene = append(scene, draw.ObjectFunc(func(ggctx *gg.Context) {
-		renderBG(ggctx)
-	}))
-
-	scene = append(scene, processorBlock{
-		x: 165,
-		y: 10,
-	})
-
-	reqLine := newArrowLine(180, 40, 100, 60)
-	resLine := newArrowLine(100, 80, 180, 70)
-
-	//scene = append(scene, objects.NewKafka(10, 10, imageWidth-20, 50))
-
-	for i := 0; i < 20; i++ {
-		// x := float64(34)
-		// y := float64(52 + 8*i)
-		// obj := &msgBlock{
-		// 	number: i + 1,
-		// 	x:      x,
-		// 	y:      y,
-		// }
-		obj := objects.NewMessage(i + 1)
-		a := draw.NewStatic(obj, 60)
-		// if i == 7 {
-		// 	a = draw.NewSequence(a,
-		// 		draw.NewBasicAnimation(obj, 10, func(v float64) {
-		// 			obj.x = x + v*100
-		// 			obj.y = y + v*100
-		// 		}),
-		// 		draw.NewBasicAnimation(obj, 60, func(v float64) {
-		// 			obj.pctLoaded = v
-		// 		}),
-		// 	)
-		// }
-		scene = append(scene, a)
+func (s *Scene) Render(dst string) error {
+	if err := s.renderSVGs(); err != nil {
+		return err
 	}
 
-	scene = append(scene, reqLine, resLine)
-
-}
-
-type arrowLine struct {
-	x1, y1, x2, y2 float64
-	hw, hh         float64
-	text           string
-}
-
-func newArrowLine(x1, y1, x2, y2 float64) *arrowLine {
-	return &arrowLine{
-		x1: x1,
-		y1: y1,
-		x2: x2,
-		y2: y2,
-
-		hw: 5,
-		hh: 5,
-	}
-}
-
-func (obj *arrowLine) Render(ggctx *gg.Context) {
-	x1, x2, y1, y2 := obj.x1, obj.x2, obj.y1, obj.y2
-	hw, hh := obj.hw, obj.hh
-
-	dx := x2 - x1
-	dy := y2 - y1
-	angle := math.Atan2(dy, dx)
-	length := math.Sqrt(dx*dx + dy*dy)
-
-	ggctx.Push()
-	ggctx.SetStrokeStyle(gg.NewSolidPattern(colorBlack))
-	ggctx.SetLineCap(gg.LineCapButt)
-	ggctx.Translate(x1, y1)
-	ggctx.Rotate(angle)
-
-	ggctx.MoveTo(0, 0)
-	ggctx.LineTo(length, 0)
-
-	// start arrow
-	//ggctx.MoveTo(hh, -hw)
-	//ggctx.LineTo(0, 0)
-	//ggctx.LineTo(hh, hw)
-
-	// end arrow
-	ggctx.MoveTo(length-hh, -hw)
-	ggctx.LineTo(length, 0)
-	ggctx.LineTo(length-hh, hw)
-
-	// text
-	ggctx.SetFontFace(fontFace)
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorBlack))
-	if dx < 0 {
-		ggctx.Scale(-1, -1)
-		ggctx.DrawStringAnchored("test", -length/2, -3, 0.5, 0)
-	} else {
-		ggctx.DrawStringAnchored("test", length/2, -3, 0.5, 0)
+	if err := s.renderPNGs(); err != nil {
+		return err
 	}
 
-	ggctx.Stroke()
-	ggctx.Pop()
+	if err := s.renderMP4(dst); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-type processorBlock struct {
-	x, y float64
-}
-
-func (pb processorBlock) Render(ggctx *gg.Context) {
-	x, y := pb.x, pb.y
-	const (
-		w = 90
-		h = 48
+func (s *Scene) renderMP4(dst string) error {
+	log.Println("converting pngs to", dst)
+	cmd := exec.Command("ffmpeg",
+		"-hide_banner", "-loglevel", "panic",
+		"-r", "60",
+		"-f", "image2",
+		"-s", "420x240",
+		"-i", filepath.Join(s.tmp, "pngs", "%05d.png"),
+		"-vcodec", "libx264",
+		"-crf", "17",
+		"-pix_fmt", "yuv420p",
+		"-profile:v", "main",
+		"-tune", "animation",
+		"-movflags", "+faststart",
+		"-y",
+		dst,
 	)
-
-	ggctx.Push()
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorWhite))
-	ggctx.SetStrokeStyle(gg.NewSolidPattern(colorBorder))
-	ggctx.DrawRoundedRectangle(align(x), align(y), w, h, 3)
-	ggctx.FillPreserve()
-	ggctx.Stroke()
-	ggctx.Pop()
-
-	ggctx.Push()
-	ggctx.SetFontFace(fontFace)
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorBlack))
-	ggctx.DrawStringAnchored("processor #1", x+w/2, y+4, 0.5, 1)
-	ggctx.Fill()
-	ggctx.Pop()
-
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
-type msqQueueBlock struct {
-	commit     int
-	x, y, w, h float64
-}
+func (s *Scene) renderPNGs() error {
+	os.MkdirAll(filepath.Join(s.tmp, "pngs"), 0755)
 
-func newMsgQueueBlock(commit int) *msqQueueBlock {
-	return &msqQueueBlock{
-		commit: commit,
-		x:      10,
-		y:      10,
-		w:      80,
-		h:      220,
+	type payload struct {
+		dst, src string
 	}
+	payloads := make(chan payload)
+
+	var eg errgroup.Group
+	eg.Go(func() error {
+		defer close(payloads)
+		for i := 0; i < s.animator.Frames(); i++ {
+			payloads <- payload{
+				dst: pngName(s.tmp, i),
+				src: svgName(s.tmp, i),
+			}
+		}
+		return nil
+	})
+	for i := 0; i < 8; i++ {
+		eg.Go(func() error {
+			for p := range payloads {
+				dst, _ := filepath.Abs(p.dst)
+				src, _ := filepath.Abs(p.src)
+				log.Println("converting", p.src, "to", p.dst)
+				// cmd := exec.Command("rsvg-convert",
+				// 	"--background-color", "#FFFFFF",
+				// 	"--output", p.dst,
+				// 	p.src)
+				cmd := exec.Command("cairosvg",
+					"--output="+dst,
+					"--width=420",
+					"--height=240",
+					src)
+				cmd.Stdin = os.Stdin
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				err := cmd.Run()
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+
+	return eg.Wait()
 }
 
-func (b msqQueueBlock) Render(ggctx *gg.Context) {
-	x, y, w, h := b.x, b.y, b.w, b.h
+func (s *Scene) renderSVGs() error {
+	os.MkdirAll(filepath.Join(s.tmp, "svgs"), 0755)
+	for frame := 0; frame < s.animator.Frames(); frame++ {
+		s.animator.Step(frame)
 
-	ggctx.Push()
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorWhite))
-	ggctx.SetStrokeStyle(gg.NewSolidPattern(colorBorder))
-	ggctx.DrawRoundedRectangle(align(x), align(y), w, h, 3)
-	ggctx.FillPreserve()
-	ggctx.Stroke()
-	ggctx.Pop()
+		f, err := os.Create(svgName(s.tmp, frame))
+		if err != nil {
+			return err
+		}
+		f.WriteString(`<svg width="420" height="240" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`)
+		f.WriteString(`<rect width="100%" height="100%" fill="white"/>`)
+		f.WriteString(`
+    <marker id='arrow-head' orient='auto' markerWidth='6' markerHeight='8'
+            refX='0.1' refY='2'>
+      <path d='M0,0 V4 L2,2 Z' fill='black' />
+		</marker>
+		`)
 
-	ggctx.Push()
-	ggctx.SetFontFace(fontFace)
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorBlack))
-	ggctx.DrawStringAnchored("kafka", x+w/2, y+4, 0.5, 1)
-	ggctx.DrawStringAnchored(fmt.Sprintf("offset: %02d", b.commit), x+w/2, y+20, 0.5, 1)
-	ggctx.Fill()
-	ggctx.Pop()
+		for _, obj := range s.objects {
+			obj.Render(f)
+		}
+		f.WriteString(`</svg>`)
+		f.Close()
+	}
 
+	return nil
 }
 
-type msgBlock struct {
-	number    int
-	x, y      float64
-	pctLoaded float64
+func svgName(dir string, frame int) string {
+	return filepath.Join(dir, "svgs", fmt.Sprintf("%05d.svg", frame))
 }
 
-func (mb msgBlock) Render(ggctx *gg.Context) {
-	const (
-		w = 32
-		h = 16
-	)
-
-	ggctx.Push()
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorBG))
-	ggctx.DrawRoundedRectangle(align(mb.x), align(mb.y), w, h, 3)
-	ggctx.Fill()
-	ggctx.Pop()
-
-	ggctx.Push()
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorLightBlue))
-	ggctx.DrawRoundedRectangle(align(mb.x), align(mb.y), w*mb.pctLoaded, h, 3)
-	ggctx.Fill()
-	ggctx.Pop()
-
-	ggctx.Push()
-	ggctx.SetStrokeStyle(gg.NewSolidPattern(colorBorder))
-	ggctx.DrawRoundedRectangle(align(mb.x), align(mb.y), w, h, 3)
-	ggctx.Stroke()
-	ggctx.Pop()
-
-	ggctx.Push()
-	ggctx.SetFontFace(fontFace)
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorBlack))
-	ggctx.DrawStringAnchored(fmt.Sprintf("%02d", mb.number), mb.x+w/2, mb.y+h/2, 0.5, 0.3)
-	ggctx.Fill()
-	ggctx.Pop()
-
-}
-
-func renderBG(ggctx *gg.Context) {
-	ggctx.Push()
-	ggctx.SetFillStyle(gg.NewSolidPattern(colorBG))
-	ggctx.Clear()
-	ggctx.Pop()
-}
-
-func align(v float64) float64 {
-	return math.Round(v*2) / 2
+func pngName(dir string, frame int) string {
+	return filepath.Join(dir, "pngs", fmt.Sprintf("%05d.png", frame))
 }

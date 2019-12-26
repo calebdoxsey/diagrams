@@ -1,0 +1,14 @@
+<svg width="420" height="240">
+  <defs>
+    <g id="message">
+      <rect width="24" height="16" rx="2" fill="#FFFFFF" stroke="#333"/>
+    </g>
+  </defs>
+  <g id="queue-1">
+    <rect width="400" height="50" x="10" y="10" rx="8" fill="#f5f2f0"/>
+    <text dominant-baseline="middle" text-anchor="start" x="20" y="20" font-family="Iosevka" font-size="11px">
+      queue #1
+    </text>
+  </g>
+  <g id="message-1"/>
+</svg>
