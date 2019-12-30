@@ -1,25 +1,32 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <title>Diagrams</title>
-  </head>
-  <body>
-    <video id="video" muted playsinline></video>
-    <script>
-      let src = document.createElement("source");
-      src.setAttribute("src", "./out/example.mp4");
-      src.setAttribute("type", "video/mp4");
+</head>
+<body>
+<video id="video-basic-message-queue" muted playsinline></video>
+<br>
+<video id="video-pipeline-message-queue" muted playsinline></video>
+<br>
+<video id="video-batch-message-queue" muted playsinline></video>
+<br>
+<video id="video-partition-message-queue" muted playsinline></video>
+<script>
+    ["basic-message-queue", "pipeline-message-queue", "batch-message-queue", "partition-message-queue"].forEach(nm => {
+        let src = document.createElement("source");
+        src.setAttribute("src", "./out/" + nm + ".mp4");
+        src.setAttribute("type", "video/mp4");
 
-      let video = document.getElementById("video");
-      video.appendChild(src);
-      video.addEventListener("ended", evt => {
-        src.setAttribute("src", "./out/example.mp4?tm=" + new Date().getTime());
+        let video = document.getElementById("video-"+nm);
+        video.appendChild(src);
+        video.addEventListener("ended", evt => {
+            src.setAttribute("src", "./out/" + nm + ".mp4?tm=" + new Date().getTime());
+            video.load();
+            video.play();
+        });
         video.load();
         video.play();
-      });
-      video.load();
-      video.play();
-      console.log(video);
-    </script>
-  </body>
+    })
+</script>
+</body>
 </html>

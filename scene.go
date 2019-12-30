@@ -14,13 +14,17 @@ import (
 )
 
 type Scene struct {
+	width int
+	height int
 	objects  []objects.Object
 	animator animate.Animator
 	tmp      string
 }
 
-func NewScene(objects []objects.Object, animator animate.Animator) *Scene {
+func NewScene(width, height int, objects []objects.Object, animator animate.Animator) *Scene {
 	s := &Scene{
+		width: width,
+		height: height,
 		objects:  objects,
 		animator: animator,
 		tmp:      filepath.Join(os.TempDir(), uuid.New().String()),
@@ -57,7 +61,7 @@ func (s *Scene) renderMP4(dst string) error {
 		"-hide_banner", "-loglevel", "panic",
 		"-r", "60",
 		"-f", "image2",
-		"-s", "420x240",
+		"-s", fmt.Sprintf("%dx%d", s.width, s.height),
 		"-i", filepath.Join(s.tmp, "pngs", "%05d.png"),
 		"-vcodec", "libx264",
 		"-crf", "17",
@@ -105,8 +109,8 @@ func (s *Scene) renderPNGs() error {
 				// 	p.src)
 				cmd := exec.Command("cairosvg",
 					"--output="+dst,
-					"--width=420",
-					"--height=240",
+					fmt.Sprintf("--width=%d", s.width),
+					fmt.Sprintf("--height=%d", s.height),
 					src)
 				cmd.Stdin = os.Stdin
 				cmd.Stdout = os.Stdout
@@ -132,11 +136,11 @@ func (s *Scene) renderSVGs() error {
 		if err != nil {
 			return err
 		}
-		f.WriteString(`<svg width="420" height="240" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`)
+		f.WriteString(`<svg width="`+fmt.Sprint(s.width)+`" height="`+fmt.Sprint(s.height)+`" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">`)
 		f.WriteString(`<rect width="100%" height="100%" fill="white"/>`)
 		f.WriteString(`
     <marker id='arrow-head' orient='auto' markerWidth='6' markerHeight='8'
-            refX='0.1' refY='2'>
+            refX='0.4' refY='2'>
       <path d='M0,0 V4 L2,2 Z' fill='black' />
 		</marker>
 		`)

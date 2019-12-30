@@ -4,34 +4,35 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/calebdoxsey/diagrams/graphics"
+	"github.com/calebdoxsey/diagrams/geometry"
 )
 
 const (
-	messageWidth  = 23.0
-	messageHeight = 15.0
+	messageWidth  = 26.0
+	messageHeight = 17.0
 )
 
 type Message struct {
+	Number    int
 	visiblity float64
-	position  graphics.Point
-	number    int
+	position  geometry.Point
+	offset    geometry.Point
 	pctLoaded float64
 }
 
 func NewMessage(number int) *Message {
 	msg := &Message{
 		visiblity: 1,
-		number:    number,
+		Number:    number,
 	}
 	return msg
 }
 
-func (msg *Message) GetPosition() graphics.Point {
+func (msg *Message) GetPosition() geometry.Point {
 	return msg.position
 }
 
-func (msg *Message) SetPosition(point graphics.Point) {
+func (msg *Message) SetPosition(point geometry.Point) {
 	msg.position = point
 }
 
@@ -43,11 +44,15 @@ func (msg *Message) SetVisibility(visibility float64) {
 	msg.visiblity = visibility
 }
 
+func (msg *Message) SetOffset(point geometry.Point) {
+	msg.offset = point
+}
+
 func (msg *Message) Render(w io.Writer) {
 	render(w, `
 <g>
 	<rect x="{{.X}}" y="{{.Y}}" width="{{.Width}}" height="{{.Height}}" rx="4" ry="4" fill="#FFF" stroke="#333"  opacity="{{.Opacity}}" />
-	<text font-family="Iosevka" font-size="10px" x="{{.TextX}}" y="{{.TextY}}" text-anchor="middle" opacity="{{.Opacity}}">{{.Text}}</text>
+	<text font-family="Iosevka" font-size="12px" x="{{.TextX}}" y="{{.TextY}}" text-anchor="middle" opacity="{{.Opacity}}">{{.Text}}</text>
 </g>
 	`, struct {
 		X, Y, Width, Height float64
@@ -55,13 +60,13 @@ func (msg *Message) Render(w io.Writer) {
 		Text                string
 		Opacity             float64
 	}{
-		X:       msg.position.X,
-		Y:       msg.position.Y,
+		X:       msg.position.X + msg.offset.X,
+		Y:       msg.position.Y + msg.offset.Y,
 		Width:   messageWidth,
 		Height:  messageHeight,
-		TextX:   msg.position.X + (messageWidth / 2),
-		TextY:   msg.position.Y + (messageHeight) - 4,
-		Text:    fmt.Sprintf("%03d", msg.number),
+		TextX:   msg.position.X + msg.offset.X + (messageWidth / 2),
+		TextY:   msg.position.Y + msg.offset.Y + (messageHeight) - 4,
+		Text:    fmt.Sprintf("%03d", msg.Number),
 		Opacity: msg.visiblity,
 	})
 }

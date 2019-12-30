@@ -1,15 +1,15 @@
 package animate
 
-import "github.com/calebdoxsey/diagrams/graphics"
+import "github.com/calebdoxsey/diagrams/geometry"
 
 type fader struct {
-	obj        graphics.HasVisibility
+	obj        geometry.HasVisibility
 	frames     int
 	start, end float64
 }
 
 // FadeTo creates an animator that fades an object to the requested visibility.
-func FadeTo(frames int, obj graphics.HasVisibility, visibility float64) Animator {
+func FadeTo(frames int, obj geometry.HasVisibility, visibility float64) Animator {
 	return &fader{
 		obj:    obj,
 		frames: frames,
@@ -30,11 +30,11 @@ func (a *fader) Step(frame int) {
 }
 
 // FadeIn creates an animator that fades in an object.
-func FadeIn(frames int, obj graphics.HasVisibility) Animator {
+func FadeIn(frames int, obj geometry.HasVisibility) Animator {
 	return FadeTo(frames, obj, 1)
 }
 
 // FadeOut creates an animator that fades out an object.
-func FadeOut(frames int, obj graphics.HasVisibility) Animator {
+func FadeOut(frames int, obj geometry.HasVisibility) Animator {
 	return FadeTo(frames, obj, 0)
 }

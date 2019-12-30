@@ -3,24 +3,21 @@ package objects
 import (
 	"io"
 
-	"github.com/calebdoxsey/diagrams/graphics"
+	"github.com/calebdoxsey/diagrams/geometry"
 )
 
 type Arrow struct {
-	Line   graphics.Line
-	hw, hh float64
+	Line geometry.Line
 }
 
-func NewArrow(line graphics.Line) *Arrow {
+func NewArrow(line geometry.Line) *Arrow {
 	return &Arrow{
 		Line: line,
-		hw:   4,
-		hh:   4,
 	}
 }
 
-func (obj *Arrow) Render(w io.Writer) {
-	render(w, `
+func (obj *Arrow) Render(out io.Writer) {
+	render(out, `
   <line
     marker-end='url(#arrow-head)'
     stroke-width='1' fill='none' stroke='black'

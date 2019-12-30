@@ -30,6 +30,9 @@ func (m *multiAnimator) Step(frame int) {
 func InSequence(animators ...Animator) Animator {
 	m := &multiAnimator{}
 	for _, a := range animators {
+		if a == nil {
+			continue
+		}
 		fs := a.Frames()
 		m.animators = append(m.animators, a)
 		m.ranges = append(m.ranges, [2]int{m.frames, m.frames + fs})
@@ -42,6 +45,9 @@ func InSequence(animators ...Animator) Animator {
 func InParallel(animators ...Animator) Animator {
 	m := &multiAnimator{}
 	for _, a := range animators {
+		if a == nil {
+			continue
+		}
 		fs := a.Frames()
 		m.animators = append(m.animators, a)
 		m.ranges = append(m.ranges, [2]int{0, fs})
